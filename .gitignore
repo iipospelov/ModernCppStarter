@@ -1,4 +1,7 @@
 /build*
 /.vscode
 /cpm_modules
-.DS_Store
+.DS_Storebuild/
+clang_tidy_report.txt
+clang_tidy_clean.txt
+clang_tidy_final_report.txt

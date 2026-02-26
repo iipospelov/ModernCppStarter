@@ -5,7 +5,7 @@ using namespace greeter;
 
 Greeter::Greeter(std::string _name) : name(std::move(_name)) {}
 
-std::string Greeter::greet(LanguageCode lang) const {
+auto Greeter::greet(LanguageCode lang) const -> std::string {
   switch (lang) {
     default:
     case LanguageCode::EN:
