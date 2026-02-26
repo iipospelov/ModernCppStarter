@@ -1,0 +1,330 @@
+name: clang-tidy Analysis
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy 21
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-tidy-21
+
+      - name: Configure main project
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure standalone
+        run: |
+          cmake -S standalone -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure test
+        run: |
+          cmake -S test -B build/test \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Run clang-tidy
+        run: |
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            echo "========================================"
+            echo "Checking: $f"
+            echo "========================================"
+            clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 | grep -E "\.(cpp|h):[0-9]+:[0-9]+: (warning|error):" || true
+          done
+
+      - name: Check for errors
+        run: |
+          ERRORS=0
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            COUNT=$(clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 \
+              | grep -cE "^${{ github.workspace }}/(include|source|standalone/source|test/source)/.*\.(cpp|h):[0-9]+:[0-9]+: error:" || true)
+            ERRORS=$((ERRORS + COUNT))
+          done
+          echo "Всего ошибок: $ERRORS"
+          exit $ERRORS
+EOFmkdir -p ~/ModernCppStarter/.github/workflows
+cat > ~/ModernCppStarter/.github/workflows/clang-tidy.yml << 'EOF'
+name: clang-tidy Analysis
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy 21
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-tidy-21
+
+      - name: Configure main project
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure standalone
+        run: |
+          cmake -S standalone -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure test
+        run: |
+          cmake -S test -B build/test \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Run clang-tidy
+        run: |
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            echo "========================================"
+            echo "Checking: $f"
+            echo "========================================"
+            clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 | grep -E "\.(cpp|h):[0-9]+:[0-9]+: (warning|error):" || true
+          done
+
+      - name: Check for errors
+        run: |
+          ERRORS=0
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            COUNT=$(clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 \
+              | grep -cE "^${{ github.workspace }}/(include|source|standalone/source|test/source)/.*\.(cpp|h):[0-9]+:[0-9]+: error:" || true)
+            ERRORS=$((ERRORS + COUNT))
+          done
+          echo "Всего ошибок: $ERRORS"
+          exit $ERRORS
+EOFmkdir -p ~/ModernCppStarter/.github/workflows
+cat > ~/ModernCppStarter/.github/workflows/clang-tidy.yml << 'EOF'
+name: clang-tidy Analysis
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy 21
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-tidy-21
+
+      - name: Configure main project
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure standalone
+        run: |
+          cmake -S standalone -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure test
+        run: |
+          cmake -S test -B build/test \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Run clang-tidy
+        run: |
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            echo "========================================"
+            echo "Checking: $f"
+            echo "========================================"
+            clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 | grep -E "\.(cpp|h):[0-9]+:[0-9]+: (warning|error):" || true
+          done
+
+      - name: Check for errors
+        run: |
+          ERRORS=0
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            COUNT=$(clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 \
+              | grep -cE "^${{ github.workspace }}/(include|source|standalone/source|test/source)/.*\.(cpp|h):[0-9]+:[0-9]+: error:" || true)
+            ERRORS=$((ERRORS + COUNT))
+          done
+          echo "Всего ошибок: $ERRORS"
+          exit $ERRORS
+EOFmkdir -p ~/ModernCppStarter/.github/workflows
+cat > ~/ModernCppStarter/.github/workflows/clang-tidy.yml << 'EOF'
+name: clang-tidy Analysis
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy 21
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-tidy-21
+
+      - name: Configure main project
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure standalone
+        run: |
+          cmake -S standalone -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Configure test
+        run: |
+          cmake -S test -B build/test \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++-21
+
+      - name: Run clang-tidy
+        run: |
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            echo "========================================"
+            echo "Checking: $f"
+            echo "========================================"
+            clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 | grep -E "\.(cpp|h):[0-9]+:[0-9]+: (warning|error):" || true
+          done
+
+      - name: Check for errors
+        run: |
+          ERRORS=0
+          for entry in \
+            "build/compile_commands.json:source/greeter.cpp" \
+            "build/standalone/compile_commands.json:standalone/source/main.cpp" \
+            "build/test/compile_commands.json:test/source/greeter.cpp" \
+            "build/test/compile_commands.json:test/source/main.cpp"; do
+            db="${entry%%:*}"
+            f="${entry##*:}"
+            COUNT=$(clang-tidy-21 \
+              -p "$db" \
+              --header-filter='^${{ github.workspace }}/(include|source|standalone|test)/.*' \
+              "$f" 2>&1 \
+              | grep -cE "^${{ github.workspace }}/(include|source|standalone/source|test/source)/.*\.(cpp|h):[0-9]+:[0-9]+: error:" || true)
+            ERRORS=$((ERRORS + COUNT))
+          done
+          echo "Всего ошибок: $ERRORS"
+          exit $ERRORS
